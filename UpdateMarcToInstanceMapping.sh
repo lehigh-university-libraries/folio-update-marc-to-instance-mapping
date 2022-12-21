@@ -116,7 +116,7 @@ function main() {
   fi
 
   # GET All Instance ids
-  get_all_instance_ids_url="${okapi_url}/instance-storage/instances?limit=${limit}&offset=${offset}"
+  get_all_instance_ids_url="${okapi_url}/instance-storage/instances?limit=${limit}&offset=${offset}&query=cql.allRecords=1+sortby+id"
   get_all_instance_ids_url=$(echo $get_all_instance_ids_url | tr -d ' ')
 
   instances=$(curl -X GET "${get_all_instance_ids_url}" --silent \
