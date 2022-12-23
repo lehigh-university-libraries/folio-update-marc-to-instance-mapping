@@ -207,8 +207,19 @@ function processMarcRecord() {
   echo "$instance_id" - "ok" >> results.txt
 }
 
+function checkAlreadyRunning() {
+  for pid in $(pidof -x $(basename "$0")); do
+    if [ $pid != $$ ]; then
+      echo "[$(date)] : $(basename "$0") : Process is already running with PID $pid"
+      exit 1
+    fi
+  done
+}
+
 # Main entry point
 SECONDS=0
+
+checkAlreadyRunning
 
 main $1 $2 $3 $4 $5 $6
 
