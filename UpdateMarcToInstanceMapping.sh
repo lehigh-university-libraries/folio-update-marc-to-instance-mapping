@@ -125,7 +125,7 @@ function main() {
     -H "Content-Type: application/json" |
     jq -r '.instances[] | select(.source=="MARC") | .id + "," + (._version|tostring)')
 
-  # read -a instances <<< $instances # for ksh?
+  # read -a instances <<< $instances # for csh?
   readarray instances <<< $instances # for bash
 
   total_count=${#instances[@]}
