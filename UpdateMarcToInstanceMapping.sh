@@ -224,4 +224,4 @@ checkAlreadyRunning
 main $1 $2 $3 $4 $5 $6
 
 duration=$SECONDS
-echo "$(( $duration / 3600 )) hours, $((( $duration / 60 ) % 60 )) minutes and $(( $duration % 60 )) seconds elapsed."
+echo "[$(date)] : $(( $duration / 3600 )) hours, $((( $duration / 60 ) % 60 )) minutes and $(( $duration % 60 )) seconds elapsed for $5 limit." >> results.txt
