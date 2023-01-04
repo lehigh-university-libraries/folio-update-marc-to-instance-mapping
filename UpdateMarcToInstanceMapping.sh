@@ -12,6 +12,9 @@ function main() {
   local limit=$5
   local release=$6
 
+  # Optional filename of instance UUIDs
+  local ids_file=$7
+
   if [[ -z "$okapi_url" ]]
   then
     read -p "Enter Okapi URL: " okapi_url
@@ -82,21 +85,26 @@ function main() {
     return 1
   fi
 
-  # GET Instances count
-  get_instances_count_url="${okapi_url}/instance-storage/instances?limit=0"
-
-  total_records=$(curl -X GET "${get_instances_count_url}" --silent \
-    -H "X-Okapi-Tenant: $tenant" \
-    -H "X-Okapi-Token: $token" \
-    -H "Content-Type: application/json" | awk 'BEGIN { FS="\"totalRecords\": "; RS="," }; { print $2 }')
-
-  # Trim total records to remove spaces from integer value
-  total_records=$(echo $total_records | tr -d ' ')
-
-  if [[ $total_records -le 0 ]]
+  if [[ -z $ids_file ]]
   then
-    echo "The number of total records is equal to 0."
-    exit 1
+    # GET Instances count
+    get_instances_count_url="${okapi_url}/instance-storage/instances?limit=0"
+
+    total_records=$(curl -X GET "${get_instances_count_url}" --silent \
+      -H "X-Okapi-Tenant: $tenant" \
+      -H "X-Okapi-Token: $token" \
+      -H "Content-Type: application/json" | awk 'BEGIN { FS="\"totalRecords\": "; RS="," }; { print $2 }')
+
+    # Trim total records to remove spaces from integer value
+    total_records=$(echo $total_records | tr -d ' ')
+
+    if [[ $total_records -le 0 ]]
+    then
+      echo "The number of total records is equal to 0."
+      exit 1
+    fi
+  else
+    total_records=$(wc -l < $ids_file)
   fi
 
   if [[ -z $limit ]]
@@ -115,9 +123,31 @@ function main() {
     echo "$offset" > offset.txt
   fi
 
-  # GET All Instance ids
-  get_all_instance_ids_url="${okapi_url}/instance-storage/instances?limit=${limit}&offset=${offset}&query=cql.allRecords=1+sortby+id"
-  get_all_instance_ids_url=$(echo $get_all_instance_ids_url | tr -d ' ')
+  if [[ $ids_file ]]
+  then
+    if [[ $limit -gt 10 ]]
+    then
+      echo "When running with a file of IDs, limit should be no more than 10."
+      exit 1
+    fi
+
+    # GET list of instance ids from the file
+    ids=$(tail -n +$(($offset + 1)) $ids_file | head -n $limit)
+
+    if [[ $ids ]]
+    then
+      query=$(sed ":a;{N;s/\n/+or+/};ba" <<< $ids)
+      get_all_instance_ids_url="$okapi_url/instance-storage/instances?query=id=($query)+sortby+id"
+    else
+      echo "0" > offset.txt
+      echo "[$(date)] : No records to process; reset offset to 0." >> results.txt
+      exit 0
+    fi
+  else
+    # GET All Instance Ids 
+    get_all_instance_ids_url="${okapi_url}/instance-storage/instances?limit=${limit}&offset=${offset}&query=cql.allRecords=1+sortby+id"
+    get_all_instance_ids_url=$(echo $get_all_instance_ids_url | tr -d ' ')
+  fi
 
   instances=$(curl -X GET "${get_all_instance_ids_url}" --silent \
     -H "X-Okapi-Tenant: $tenant" \
@@ -221,7 +251,7 @@ SECONDS=0
 
 checkAlreadyRunning
 
-main $1 $2 $3 $4 $5 $6
+main $1 $2 $3 $4 $5 $6 $7
 
 duration=$SECONDS
 echo "[$(date)] : $(( $duration / 3600 )) hours, $((( $duration / 60 ) % 60 )) minutes and $(( $duration % 60 )) seconds elapsed for $5 limit." >> results.txt
